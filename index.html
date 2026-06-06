@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UsbDisplay — 3.5″ USB Turing Smart Screen</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0c0a18;
+    --bg2: #15122a;
+    --neon-p: #b266ff;
+    --neon-c: #6ee7ff;
+    --neon-g: #5ae8a0;
+    --neon-y: #ffdc50;
+    --text: #e8e6f0;
+    --muted: #8a85a0;
+    --card: #1c1832;
+    --border: #2a264a;
+  }
+  html, body {
+    background: linear-gradient(135deg, #0c0a18 0%, #15122a 50%, #0c0a18 100%);
+    color: var(--text);
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  body { padding: 0 0 80px; }
+  a { color: var(--neon-c); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 80px 20px 40px;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(178,102,255,0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero > * { position: relative; z-index: 1; }
+  .badge {
+    display: inline-block;
+    padding: 6px 14px;
+    background: rgba(178,102,255,0.15);
+    border: 1px solid var(--neon-p);
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--neon-p);
+    margin-bottom: 24px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  h1 {
+    font-size: 56px;
+    background: linear-gradient(90deg, var(--neon-p) 0%, var(--neon-c) 50%, var(--neon-g) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+    font-weight: 800;
+    letter-spacing: -1px;
+  }
+  .tagline {
+    font-size: 19px;
+    color: var(--muted);
+    max-width: 700px;
+    margin: 0 auto 32px;
+  }
+  .cta {
+    display: inline-block;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, var(--neon-p) 0%, var(--neon-c) 100%);
+    color: #0c0a18;
+    font-weight: 700;
+    border-radius: 8px;
+    margin: 0 8px;
+    font-size: 15px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(178,102,255,0.4);
+    text-decoration: none;
+  }
+  .cta.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .cta.secondary:hover { border-color: var(--neon-c); box-shadow: 0 0 16px rgba(110,231,255,0.2); }
+
+  /* SCREENSHOT DISPLAY */
+  .display-section {
+    max-width: 1100px;
+    margin: 60px auto 0;
+    padding: 0 20px;
+  }
+  .display-frame {
+    position: relative;
+    background: #000;
+    border: 3px solid var(--neon-p);
+    border-radius: 18px;
+    padding: 12px;
+    box-shadow: 0 0 60px rgba(178,102,255,0.3);
+  }
+  .display-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+  .display-label {
+    position: absolute;
+    top: -14px; left: 24px;
+    background: var(--bg);
+    padding: 0 12px;
+    font-size: 12px;
+    color: var(--neon-p);
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  /* FEATURES */
+  .section {
+    max-width: 1100px;
+    margin: 80px auto 0;
+    padding: 0 20px;
+  }
+  .section-title {
+    font-size: 32px;
+    text-align: center;
+    margin-bottom: 40px;
+    font-weight: 700;
+  }
+  .section-title span {
+    background: linear-gradient(90deg, var(--neon-c), var(--neon-p));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: var(--neon-p);
+    box-shadow: 0 8px 24px rgba(178,102,255,0.15);
+  }
+  .card .icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    display: inline-block;
+    width: 48px; height: 48px;
+    line-height: 48px;
+    text-align: center;
+    background: rgba(178,102,255,0.1);
+    border-radius: 10px;
+  }
+  .card h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .card p {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .card .tag {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 3px 10px;
+    background: rgba(110,231,255,0.1);
+    color: var(--neon-c);
+    font-size: 11px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  /* GIFS */
+  .pokes {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
+    margin: 24px 0 0;
+  }
+  .poke {
+    text-align: center;
+  }
+  .poke img {
+    width: 160px; height: 160px;
+    object-fit: contain;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    padding: 8px;
+  }
+  .poke-name {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* SCREENSHOTS */
+  .screenshots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 24px 0 0;
+  }
+  .shot {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .shot h4 {
+    font-size: 14px;
+    color: var(--neon-c);
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+  }
+  .shot img {
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+    display: block;
+  }
+  @media (max-width: 700px) {
+    .screenshots { grid-template-columns: 1fr; }
+    h1 { font-size: 36px; }
+    .tagline { font-size: 16px; }
+  }
+
+  /* ARCHITECTURE */
+  pre.code {
+    background: #0a0816;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #c0bce0;
+  }
+  pre.code .c { color: #6c6789; }
+  pre.code .k { color: var(--neon-p); }
+  pre.code .s { color: var(--neon-g); }
+  pre.code .n { color: var(--neon-c); }
+
+  /* STATS */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin: 24px 0 0;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .stat .val {
+    font-size: 32px;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--neon-p), var(--neon-c));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat .label {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    margin-top: 80px;
+    padding: 32px 20px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+  footer a { color: var(--neon-c); }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="badge">⚡ PYTHON × USB DISPLAY × NEON</div>
+  <h1>UsbDisplay</h1>
+  <p class="tagline">
+    Превращает 3.5″ USB Turing Smart Screen в живую панель мониторинга:
+    CPU per-core, GPU, RAM, сеть, диски, OpenCode — с покемонами в углах.
+  </p>
+  <a class="cta" href="../../releases/latest">⬇ Скачать .exe</a>
+  <a class="cta secondary" href="README.md">📖 Документация</a>
+</section>
+
+<section class="display-section">
+  <div class="display-frame">
+    <div class="display-label">3.5″ USB TURING SMART SCREEN · 480×320 · CH340</div>
+    <img src="screenshot_display.png" alt="UsbDisplay screenshot">
+  </div>
+
+  <div class="pokes">
+    <div class="poke">
+      <img src="gif/gastly.gif" alt="Gastly">
+      <div class="poke-name">Gastly</div>
+    </div>
+    <div class="poke">
+      <img src="gif/haunter.gif" alt="Haunter">
+      <div class="poke-name">Haunter</div>
+    </div>
+    <div class="poke">
+      <img src="gif/gengar.gif" alt="Gengar">
+      <div class="poke-name">Gengar</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <h2 class="section-title">Что <span>сделано</span></h2>
+  <div class="grid">
+    <div class="card">
+      <div class="icon">🎨</div>
+      <h3>neon_gengar тема</h3>
+      <p>3 анимированных GIF покемонов в углах, неоновый UI с glow, частицами и кастомными панелями. Pre-render статики для скорости.</p>
+      <div class="tag">Pillow · GIF · alpha_composite</div>
+    </div>
+    <div class="card">
+      <div class="icon">⚡</div>
+      <h3>Partial updates</h3>
+      <p>На CH340@230400 обновляются только изменившиеся регионы: round-robin GIF + стат-панели. Цикл 3 углов ≈ 2.6 с.</p>
+      <div class="tag">Turing · display_region</div>
+    </div>
+    <div class="card">
+      <div class="icon">💾</div>
+      <h3>Мониторинг железа</h3>
+      <p>CPU (per-core bars), GPU (VRAM, temp, power), RAM, Wi-Fi/Ethernet (SSID, signal, ↓↑ MB/s), 1–2 диска, hostname, время.</p>
+      <div class="tag">psutil · pynvml · wmi</div>
+    </div>
+    <div class="card">
+      <div class="icon">🌐</div>
+      <h3>OpenCode widget</h3>
+      <p>Баланс, план (lite/free), использование месяца. Cookie или Bearer token. Кеш 60 с. URL задаётся в GUI.</p>
+      <div class="tag">urllib · regex · cache</div>
+    </div>
+    <div class="card">
+      <div class="icon">🖼️</div>
+      <h3>GUI на tkinter</h3>
+      <p>Все настройки в одном окне: OpenCode, диски, WiFi/Ethernet, COM-порт, baud, тема, поворот, автозапуск, трей. Встроено в Python.</p>
+      <div class="tag">tkinter 8.6 · ttk</div>
+    </div>
+    <div class="card">
+      <div class="icon">🗂️</div>
+      <h3>System tray</h3>
+      <p>При закрытии сворачивается в трей. Контекст-меню: «Показать окно» / «Выход». Иконка генерируется на лету.</p>
+      <div class="tag">pystray · PIL</div>
+    </div>
+    <div class="card">
+      <div class="icon">🚀</div>
+      <h3>Windows autostart</h3>
+      <p>Чекбокс в GUI → запись в HKCU\…\Run через <code>pythonw.exe app.py --autostart</code>. Без внешних утилит.</p>
+      <div class="tag">winreg · Run key</div>
+    </div>
+    <div class="card">
+      <div class="icon">🔌</div>
+      <h3>Авто-recovery</h3>
+      <p>При зависании дисплея: software reset (cmd=101) → DTR-пульс → долгое ожидание USB re-enumerate. 3-шаговый fallback.</p>
+      <div class="tag">pyserial · DTR</div>
+    </div>
+    <div class="card">
+      <div class="icon">📦</div>
+      <h3>Single .exe</h3>
+      <p>PyInstaller onefile, ~9 MB. Кладёшь в любую папку, запускаешь. Никаких pip install для пользователя.</p>
+      <div class="tag">PyInstaller 6.x</div>
+    </div>
+    <div class="card">
+      <div class="icon">🛡️</div>
+      <h3>Безопасный recovery</h3>
+      <p>115200 / 230400 baud — стабильно. 460800 / 921600 — зашумит или зависнет прошивка дисплея. Это документировано в коде.</p>
+      <div class="tag">CH340 · UART</div>
+    </div>
+    <div class="card">
+      <div class="icon">📊</div>
+      <h3>Превью-окно</h3>
+      <p>Опциональное окно для отладки: видно то, что уходит на дисплей, без подключения экрана. Удобно для разработки тем.</p>
+      <div class="tag">tkinter · PIL</div>
+    </div>
+    <div class="card">
+      <div class="icon">🧪</div>
+      <h3>CLI-режим</h3>
+      <p>Запуск из терминала с флагами: <code>--reset</code>, <code>--rotate</code>, <code>--theme</code>, <code>--no-preview</code>. Удобно для скриптов и CI.</p>
+      <div class="tag">argparse</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <h2 class="section-title">Скриншоты <span>интерфейса</span></h2>
+  <div class="screenshots">
+    <div class="shot">
+      <h4>⚙ Окно конфигурации (GUI)</h4>
+      <img src="screenshot_gui.png" alt="GUI screenshot">
+    </div>
+    <div class="shot">
+      <h4>🖥 Дисплей (neon_gengar)</h4>
+      <img src="screenshot_display.png" alt="Display screenshot">
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <h2 class="section-title">Архитектура <span>и стек</span></h2>
+  <div class="stats">
+    <div class="stat">
+      <div class="val">9</div>
+      <div class="label">файлов Python</div>
+    </div>
+    <div class="stat">
+      <div class="val">230400</div>
+      <div class="label">baud (надёжный)</div>
+    </div>
+    <div class="stat">
+      <div class="val">2.6s</div>
+      <div class="label">цикл 3 GIF</div>
+    </div>
+    <div class="stat">
+      <div class="val">8.9MB</div>
+      <div class="label">размер .exe</div>
+    </div>
+    <div class="stat">
+      <div class="val">100%</div>
+      <div class="label">open source (MIT)</div>
+    </div>
+  </div>
+
+  <pre class="code"><span class="c"># protocol/turing.py — 6-байтный заголовок</span>
+<span class="k">def</span> pack_cmd(x, y, ex, ey, cmd):
+    <span class="k">return</span> bytes([
+        (x &gt;&gt; 2) &amp; <span class="n">0xFF</span>,
+        (((x &amp; <span class="n">3</span>) &lt;&lt; <span class="n">6</span>) + (y &gt;&gt; <span class="n">4</span>)) &amp; <span class="n">0xFF</span>,
+        (((y &amp; <span class="n">15</span>) &lt;&lt; <span class="n">4</span>) + (ex &gt;&gt; <span class="n">6</span>)) &amp; <span class="n">0xFF</span>,
+        (((ex &amp; <span class="n">63</span>) &lt;&lt; <span class="n">2</span>) + (ey &gt;&gt; <span class="n">8</span>)) &amp; <span class="n">0xFF</span>,
+        ey &amp; <span class="n">0xFF</span>,
+        cmd &amp; <span class="n">0xFF</span>,
+    ])
+
+<span class="c"># main.py — partial update</span>
+regions = theme.dirty_regions(snap)
+<span class="k">for</span> r <span class="k">in</span> regions:
+    _, _key, x, y, w, h = r
+    d.send_region(img, x, y, w, h)
+    theme.mark_sent(r)
+
+<span class="c"># autostart.py — registry</span>
+winreg.SetValueEx(key, <span class="s">"UsbDisplay"</span>, <span class="n">0</span>, REG_SZ,
+                  <span class="s">f'"{pythonw}" "{app_py}" --autostart'</span>)</pre>
+</section>
+
+<section class="section">
+  <h2 class="section-title">Быстрый <span>старт</span></h2>
+  <pre class="code"><span class="c"># 1. Скачай .exe или собери из исходников</span>
+git <span class="k">clone</span> https://github.com/&lt;user&gt;/UsbDisplay.git
+cd UsbDisplay
+pip install -r requirements.txt
+
+<span class="c"># 2. Запусти</span>
+python app.py
+<span class="c"># или CLI-вариант:</span>
+python main.py --reset --theme neon_gengar --no-preview --rotate <span class="n">0</span>
+
+<span class="c"># 3. Собери свой .exe</span>
+pip install pyinstaller
+pyinstaller --onefile --windowed --name UsbDisplay --add-data <span class="s">"gif;gif"</span> app.py</pre>
+</section>
+
+<footer>
+  MIT License · 2025 · <a href="README.md">README</a> ·
+  <a href="../../releases">Releases</a> ·
+  Сделано с 🟣 для 3.5″ USB Turing Smart Screen
+</footer>
+
+</body>
+</html>

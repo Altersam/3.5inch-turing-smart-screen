@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Виртуальные окружения
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# PyInstaller
+build/
+# dist/UsbDisplay.exe — публикуем в репо (releases)
+# dist/ промежуточные сборки — игнорируем
+dist/*.pyi
+dist/*.toc
+dist/*.log
+*.spec
+build_exe.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Пользовательские файлы
+*.log
+*.bak
+*.tmp
+screenshot_*.png
+icon.ico
+config.json
+opencode_cookie.txt
+opencode_token.txt
+
+# Тестовые артефакты
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
