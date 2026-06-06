@@ -38,7 +38,7 @@ desktop.ini
 *.log
 *.bak
 *.tmp
-screenshot_*.png
+# screenshot_*.png и Display.jpg/GUI.png — публикуем (реальные фото дисплея и GUI)
 icon.ico
 config.json
 opencode_cookie.txt

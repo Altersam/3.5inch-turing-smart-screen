@@ -1,16 +1,20 @@
 # UsbDisplay
 
-**Наведи на 3.5″ USB Turing Smart Screen — и он покажет всё, что происходит в твоём ПК.**
+**Превращает 3.5″ USB Turing Smart Screen в живую панель мониторинга ПК.**
 
-![Display screenshot](screenshot_display.png)
+| Дисплей | Окно настроек |
+|:---:|:---:|
+| ![Display](screenshot_display.png) | ![GUI](screenshot_gui.png) |
 
-🟣 Кастомная тема **neon_gengar** с 3 покемонами (Gastly / Haunter / Gengar) в углах, балансом OpenCode, пер-ядровыми барами CPU, VRAM-баром GPU, RAM, сетью и дисками — на маленьком экране, без лагов.
+🟣 Кастомная тема **neon_gengar** с 3 покемонами (Gastly / Haunter / Gengar) в углах, балансом OpenCode, пер-ядровыми барами CPU, VRAM-баром GPU, RAM, сетью и дисками — на маленьком экране 480×320, без лагов.
+
+> 📸 Скриншоты сделаны с реального устройства (3.5″ USB Turing, COM5, CH340) в тёмной комнате.
 
 ---
 
 ## ✨ Что внутри
 
-| Карточка | Описание |
+| Фича | Описание |
 |---|---|
 | 🎨 **neon_gengar theme** | 3 анимированных GIF покемонов в углах + неоновый UI с glow, particles и панелями. |
 | ⚡ **Partial updates** | На медленном CH340@230400 обновляются только изменившиеся регионы (round-robin GIF + стат-панели). Цикл 3 углов ≈ 2.6 с. |
@@ -58,8 +62,8 @@ pystray        # для иконки в трее
 ### Из исходников
 
 ```bash
-git clone https://github.com/<user>/UsbDisplay.git
-cd UsbDisplay
+git clone https://github.com/Altersam/3.5inch-turing-smart-screen.git
+cd 3.5inch-turing-smart-screen
 pip install -r requirements.txt
 python app.py
 ```
@@ -68,9 +72,11 @@ python app.py
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --windowed --name UsbDisplay --add-data "gif;gif" app.py
+pyinstaller --noconfirm --clean UsbDisplay.spec
 # результат: dist/UsbDisplay.exe
 ```
+
+> В проекте лежит готовый `UsbDisplay.spec` с явным `hiddenimports` для PyInstaller 6.19 + Python 3.14.
 
 ---
 
@@ -111,13 +117,21 @@ UsbDisplay/
 ├── gui.py              # tkinter-форма конфигурации
 ├── tray.py             # pystray иконка + контекст-меню
 ├── autostart.py        # Windows registry helpers
+├── reset_disp.py       # утилита сброса дисплея
+├── make_display_render.py # рендер «фото» дисплея из темы
 ├── core/
 │   ├── config.py       # Display/UI/User config (dataclass + JSON)
 │   └── logger.py
 ├── sensors/
 │   └── hardware.py     # psutil/pynvml/wmi + OpenCode-парсер
 ├── themes/
-│   └── neon_gengar.py  # главная тема: GIF + panels + dirty_regions
+│   ├── neon_gengar.py  # главная тема: GIF + panels + dirty_regions
+│   ├── gengar.py
+│   ├── minimal.py
+│   └── cyberpunk.py
+├── ui/
+│   ├── widgets.py      # text/bar/ring/vbar (PIL-обёртки)
+│   └── fonts.py        # кеш TTF
 ├── display/
 │   ├── serial_lcd.py   # SerialLCD (send_frame, send_region, reset)
 │   ├── preview.py      # опциональное preview-окно (для отладки)
@@ -125,14 +139,19 @@ UsbDisplay/
 ├── protocol/
 │   └── turing.py       # Turing-протокол: pack_cmd, display_bitmap, display_region
 ├── gif/                # gastly.gif, haunter.gif, gengar.gif
-├── opencode_cookie.txt # (опционально) cookie для OpenCode
-├── opencode_token.txt  # (опционально) bearer token
-├── reset_disp.py       # утилита сброса дисплея (--soft / --dtr / --clear)
+├── opencode_cookie.txt.example
+├── opencode_token.txt.example
+├── UsbDisplay.spec     # PyInstaller spec
 ├── config.json         # (создаётся автоматически)
 ├── requirements.txt
 ├── .gitignore
 ├── LICENSE
 ├── README.md
+├── Display.jpg         # реальное фото дисплея
+├── GUI.png             # реальный скриншот GUI
+├── screenshot_display.png  # PNG-версия Display.jpg
+├── screenshot_gui.png      # PNG-копия GUI.png
+├── display_thumb.jpg   # превью для лендинга
 └── index.html          # лендинг для GitHub Pages
 ```
 
@@ -180,15 +199,23 @@ python reset_disp.py --clear
 # GUI-режим (рекомендуется)
 python app.py
 
+# GUI-режим сразу в трей (для автозапуска)
+python app.py --autostart
+
 # CLI-режим (для отладки)
 python main.py --reset --theme neon_gengar --no-preview --rotate 0
+
+# Сгенерить «фото» дисплея из темы (использует NeonGengarTheme)
+python make_display_render.py
 ```
 
 ## 📸 Скриншоты
 
-| Окно настроек | Дисплей |
+| Окно настроек | Дисплей (реальное фото) |
 |---|---|
 | ![GUI](screenshot_gui.png) | ![Display](screenshot_display.png) |
+
+Оригиналы: [`Display.jpg`](Display.jpg) (4096×3072, 2.5 MB) и [`GUI.png`](GUI.png).
 
 ## 📜 License
 
