@@ -16,8 +16,8 @@
 
 | Фича | Описание |
 |---|---|
-| 🎨 **neon_gengar theme** | 3 анимированных GIF покемонов в углах + неоновый UI с glow, particles и панелями. |
-| ⚡ **Partial updates** | На медленном CH340@230400 обновляются только изменившиеся регионы (round-robin GIF + стат-панели). Цикл 3 углов ≈ 2.6 с. |
+| 🎨 **neon_gengar theme** | 3 анимированных GIF покемонов в углах + неоновый UI с glow, particles и панелями. Два верхних прямоугольника: часы (HH:MM + дата по-русски) и баланс OpenCode. |
+| ⚡ **Partial updates** | На медленном CH340@230400 обновляются только изменившиеся регионы (round-robin GIF + стат-панели). Макс. 2 региона за кадр + 15ms пауза — защита от перегрузки ST7796. Цикл 3 углов ≈ 2.6 с. |
 | 💾 **Мониторинг** | CPU (per-core bars), GPU (VRAM, temp, power), RAM, Wi-Fi/Ethernet (SSID, signal, ↓↑ MB/s), 1–2 диска, hostname, время. |
 | 🌐 **OpenCode widget** | Баланс, план (lite/free), использование месяца. Cookie/токен из GUI. Кеш 60 с. |
 | 🖼️ **GUI на tkinter** | Все настройки в одном окне: OpenCode, диски, WiFi/Ethernet, COM-порт, baud, тема, поворот, автозапуск, трей. |
@@ -78,6 +78,16 @@ pyinstaller --noconfirm --clean UsbDisplay.spec
 
 > В проекте лежит готовый `UsbDisplay.spec` с явным `hiddenimports` для PyInstaller 6.19 + Python 3.14.
 
+### Персональная сборка (с захардкоженными credentials)
+
+```bash
+# Отредактируй personal_app.py — вставь свои PERSONAL_COOKIE, PERSONAL_TOKEN, PERSONAL_URL
+pyinstaller --noconfirm --clean UsbDisplayPersonal.spec
+# результат: dist/UsbDisplayPersonal.exe
+```
+
+> `personal_app.py` — упрощённая версия: одна кнопка «Запустить экран» + автозагрузка + трей, без GUI настроек.
+
 ---
 
 ## ⚙️ Конфигурация
@@ -113,6 +123,7 @@ pyinstaller --noconfirm --clean UsbDisplay.spec
 ```
 UsbDisplay/
 ├── app.py              # GUI + tray + display loop в потоке
+├── personal_app.py     # персональная сборка: захардкоженные creds, одна кнопка
 ├── main.py             # CLI-режим (для отладки)
 ├── gui.py              # tkinter-форма конфигурации
 ├── tray.py             # pystray иконка + контекст-меню
@@ -141,7 +152,8 @@ UsbDisplay/
 ├── gif/                # gastly.gif, haunter.gif, gengar.gif
 ├── opencode_cookie.txt.example
 ├── opencode_token.txt.example
-├── UsbDisplay.spec     # PyInstaller spec
+├── UsbDisplay.spec           # PyInstaller spec (полная сборка)
+├── UsbDisplayPersonal.spec   # PyInstaller spec (персональная сборка)
 ├── config.json         # (создаётся автоматически)
 ├── requirements.txt
 ├── .gitignore
@@ -169,7 +181,7 @@ UsbDisplay/
 | RESET | 101 | software reset |
 | CLEAR | 102 | очистка экрана |
 | SET_BRIGHTNESS | 110 | 0..100 |
-| SET_ORIENTATION | 121 | 0=PORTRAIT, 2=LANDSCAPE |
+| SET_ORIENTATION | 121 | 0=PORTRAIT(320×480), 1=REV_PORTRAIT(320×480), 2=LANDSCAPE(480×320), 3=REV_LANDSCAPE(480×320) |
 | DISPLAY_BITMAP | 197 | отправка картинки (RGB565 LE) |
 
 ### Partial updates
@@ -177,7 +189,8 @@ UsbDisplay/
 - `display_bitmap` (полный кадр) — 307 КБ = 13.4 с @ 230400.
 - `display_region` (частичный) — только прямоугольник. 100×100 = 20 КБ = 0.87 с @ 230400.
 - Тема возвращает `dirty_regions(snap)` — список изменившихся регионов.
-- Round-robin для GIF-углов + все изменившиеся стат-панели за один тик.
+- Макс. **2 региона за кадр** + **15ms пауза** между ними — защита от перегрузки ST7796 (иначе white screen / шумы).
+- Полный кадр resync каждые 15 кадров (3 с) для восстановления синхронизации.
 
 ---
 

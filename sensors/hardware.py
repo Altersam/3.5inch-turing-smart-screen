@@ -245,6 +245,24 @@ class HardwareMonitor:
                         return max(temps)
             except Exception:
                 pass
+        # fallback: PowerShell subprocess (работает если запущен от админа)
+        try:
+            out = subprocess.check_output(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-CimInstance MSAcpi_ThermalZoneTemperature -Namespace root/wmi).CurrentTemperature"],
+                timeout=5, creationflags=0x08000000
+            ).decode("utf-8", "ignore").strip()
+            temps = []
+            for line in out.splitlines():
+                line = line.strip()
+                if line.isdigit():
+                    c = (int(line) / 10.0) - 273.15
+                    if 0 < c < 120:
+                        temps.append(c)
+            if temps:
+                return max(temps)
+        except Exception:
+            pass
         # fallback: OpenHardwareMonitor WMI
         try:
             import wmi as _wmi_mod
@@ -281,14 +299,54 @@ class HardwareMonitor:
         return None
 
     def _disk_temp_wmi(self):
-        if not self._wmi:
-            return None
+        if self._wmi:
+            try:
+                ts = self._wmi.MSAcpi_ThermalZoneTemperature()
+                if len(ts) > 1:
+                    return (ts[1].CurrentTemperature / 10.0) - 273.15
+            except Exception:
+                pass
+        # fallback: PowerShell
         try:
-            ts = self._wmi.MSAcpi_ThermalZoneTemperature()
-            if len(ts) > 1:
-                return (ts[1].CurrentTemperature / 10.0) - 273.15
+            out = subprocess.check_output(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-CimInstance MSAcpi_ThermalZoneTemperature -Namespace root/wmi)[1].CurrentTemperature"],
+                timeout=5, creationflags=0x08000000
+            ).decode("utf-8", "ignore").strip()
+            if out.isdigit():
+                c = (int(out) / 10.0) - 273.15
+                if 0 < c < 80:
+                    return c
         except Exception:
-            return None
+            pass
+        return None
+
+    def _disk_temps_ohm(self) -> dict:
+        """Try OpenHardwareMonitor / LibreHardwareMonitor WMI for per-disk temps."""
+        result = {}
+        for ns in ["root\\OpenHardwareMonitor\\Hardware",
+                    "root\\LibreHardwareMonitor\\Hardware"]:
+            try:
+                ohm = wmi.WMI(namespace=ns)
+                for s in ohm.Sensor():
+                    if s.SensorType == "Temperature" and "Disk" in s.Parent:
+                        try:
+                            v = float(s.Value)
+                            if 0 < v < 80:
+                                parent = s.Parent or ""
+                                for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+                                    if letter.lower() in parent.lower():
+                                        result[letter + ":\\"] = v
+                                        break
+                                if len(result) >= 2:
+                                    return result
+                        except Exception:
+                            pass
+                if result:
+                    return result
+            except Exception:
+                continue
+        return result
 
     def _cpu_freq_ghz(self) -> float:
         if not psutil:
@@ -478,6 +536,19 @@ class HardwareMonitor:
             if m_norm == snap.disk.mount:
                 continue
             snap.disks[mount] = self._disk_sample(mount)
+        # per-disk temps via OHM/LHM
+        try:
+            disk_temps = self._disk_temps_ohm()
+            for dk, temp in disk_temps.items():
+                dk_norm = dk.rstrip("/\\") + "\\"
+                if dk_norm == snap.disk.mount:
+                    snap.disk.temp_c = temp
+                for mount in self.extra_disks:
+                    if mount and mount.rstrip("/\\") + "\\" == dk_norm:
+                        if mount in snap.disks:
+                            snap.disks[mount].temp_c = temp
+        except Exception:
+            pass
 
         # NET
         now = time.time()

@@ -136,16 +136,20 @@ def _display_loop(cfg: Config, stop: dict, log, args):
                     d.send_frame(img)
                 full_frame_pending = False
             elif partial_displays and hasattr(theme, "dirty_regions"):
-                regions = theme.dirty_regions(snap)
-                for r in regions:
-                    if r[0] == "gif":
-                        _, _key, x, y, rw, rh = r
-                    else:
-                        _, _key, x, y, rw, rh = r
+                # полный кадр каждые 30 кадров — resync дисплея
+                if frames % 30 == 0:
                     for d in partial_displays:
-                        d.send_region(img, x, y, rw, rh)
-                    if hasattr(theme, "mark_sent"):
-                        theme.mark_sent(r)
+                        d.send_frame(img)
+                else:
+                    regions = theme.dirty_regions(snap)
+                    # максимум 2 региона за кадр — ST7796 overload protection
+                    for r in regions[:2]:
+                        _, _key, x, y, rw, rh = r
+                        for d in partial_displays:
+                            d.send_region(img, x, y, rw, rh)
+                        if hasattr(theme, "mark_sent"):
+                            theme.mark_sent(r)
+                        time.sleep(0.015)
             elif partial_displays:
                 for d in partial_displays:
                     d.send_frame(img)

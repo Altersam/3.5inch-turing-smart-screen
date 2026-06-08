@@ -189,8 +189,6 @@ class SerialLCD(BaseDisplay):
             header, data = tp.display_region(region, x, y)
             self.ser.write(header)
             self.ser.flush()
-            # chunk = current_width * 8 (DMA-выравнивание)
-            # для маленьких регионов берём минимум — чтоб не залипнуть на CTS
             cw = tp.current_width() * 8
             chunk = min(cw, len(data) or cw)
             for i in range(0, len(data), chunk):

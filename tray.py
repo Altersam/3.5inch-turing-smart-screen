@@ -13,20 +13,30 @@ except Exception:
     _HAS_PYSTRAY = False
 
 
-_HERE = Path(__file__).parent
+def _data_dir() -> Path:
+    """Каталог с bundled-файлами (icon.ico и т.д.)."""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).parent
+
+
+_HERE = _data_dir()
 
 
 def _make_icon(size: int = 64) -> "Image.Image":
-    """Простая иконка: тёмный фон с фиолетовым кругом."""
+    """Иконка для трея: загружает icon.ico или генерирует программно."""
+    ico_path = _HERE / "icon.ico"
+    if ico_path.exists():
+        try:
+            return Image.open(ico_path).resize((size, size), Image.LANCZOS).convert("RGBA")
+        except Exception:
+            pass
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    # фон
     d.rounded_rectangle([0, 0, size - 1, size - 1], radius=size // 6,
                         fill=(25, 20, 50, 255))
-    # неоновый круг
     d.ellipse([size // 6, size // 6, size * 5 // 6, size * 5 // 6],
               outline=(180, 100, 255, 255), width=max(2, size // 16))
-    # точка-глаз
     cx, cy = size // 2, size // 2
     r = size // 10
     d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 60, 60, 255))

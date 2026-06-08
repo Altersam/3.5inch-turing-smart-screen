@@ -64,10 +64,10 @@ class TuringProtocol:
     def set_orientation(self, orientation: int) -> bytes:
         """orientation: 0..3. SetOrientation — 11 байт:
         6-байтный заголовок + (orientation+100) + 2 байта W + 2 байта H.
-        Для landscape (1,3) W/H меняются на 480x320 — иначе дисплей
+        Для landscape (2,3) W/H меняются на 480x320 — иначе дисплей
         думает, что буфер 320x480 и сдвигает картинку."""
         self.orientation = orientation
-        if orientation in (1, 3):
+        if orientation in (2, 3):
             w, h = 480, 320
         else:
             w, h = 320, 480
@@ -79,7 +79,7 @@ class TuringProtocol:
         return header + extra
 
     def current_width(self) -> int:
-        return 480 if self.orientation in (1, 3) else 320
+        return 480 if self.orientation in (2, 3) else 320
 
     def hello(self) -> bytes:
         return bytes([HELLO] * 6)

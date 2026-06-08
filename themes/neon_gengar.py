@@ -58,6 +58,16 @@ def _disk_pct(snap, mount: str) -> float:
     return 0.0
 
 
+def _disk_temp(snap, mount: str):
+    m = mount.rstrip("/\\") + "\\"
+    for k, v in snap.disks.items():
+        if k.rstrip("/\\") + "\\" == m:
+            return v.temp_c
+    if snap.disk.mount.rstrip("/\\") + "\\" == m:
+        return snap.disk.temp_c
+    return None
+
+
 def _load_frames(path: Path, size: int):
     if not path:
         return []
@@ -239,10 +249,13 @@ class NeonGengarTheme(BaseTheme):
         self._static_bg = self._build_static_bg()
         # region-карта для dirty-detection
         # (ключ, x, y, w, h, value-fetcher)
+        pw_top = (280 - 4) // 2
         self._regions = [
-            ("opencode", 100, 0,   280, 100,
+            ("clock",    100, 0,   pw_top, 100,
+             lambda s: int(time.time())),
+            ("opencode", 100 + pw_top + 4, 0, pw_top, 100,
              lambda s: (s.opencode.balance, s.opencode.plan,
-                        int(time.time()) // 2)),
+                        int(time.time()) // 60)),
             ("cpu",      4,   100, 0,   140,
              lambda s: (round(s.cpu.usage), round(s.cpu.freq_ghz, 1),
                          s.cpu.temp_c, tuple(round(x) for x in (s.cpu.per_core or [])))),
@@ -311,7 +324,8 @@ class NeonGengarTheme(BaseTheme):
             key = "disk_" + (mount.rstrip(":\\") or "?").lower()
             x = 4 + i * (pw2 + gap)
             disks_regions.append((key, x, 240, pw2, 80,
-                                  lambda s, m=mount: (round(_disk_pct(s, m)),)))
+                                  lambda s, m=mount: (round(_disk_pct(s, m)),
+                                                      _disk_temp(s, m))))
         # стат-панели (без дисков, они отдельно)
         for key, x, y, rw, rh, fetcher in self._regions[1:]:
             try:
@@ -397,8 +411,10 @@ class NeonGengarTheme(BaseTheme):
             label = "DISK " + (mount.rstrip(":\\") or "?").upper()[:1]
             x = 4 + i * (pw2 + gap)
             _panel(d, x, bot_y, pw2, bot_h, title=label, title_size=12)
-        # рамка OPENCODE
-        _panel(d, 100, 0, 280, 100, title="OPENCODE", title_size=12)
+        # рамки двух панелей сверху: CLOCK + OPENCODE
+        pw_top = (280 - gap) // 2
+        _panel(d, 100, 0, pw_top, 100, title="", title_size=0)
+        _panel(d, 100 + pw_top + gap, 0, pw_top, 100, title="OPENCODE", title_size=12)
         # декоративные углы GIF (белые уголки)
         for gx, gy in [(0, 0), (w - GIF_SIZE, 0),
                        (w - GIF_SIZE, h - GIF_SIZE)]:
@@ -427,8 +443,11 @@ class NeonGengarTheme(BaseTheme):
 
         d = ImageDraw.Draw(base, "RGBA")
 
-        # === TOP MIDDLE: OPENCODE 280×100 ===
-        self._draw_opencode_top(d, 100, 0, 280, 100, snap)
+        # === TOP MIDDLE: 2 equal panels 140×100 each ===
+        gap = 4
+        pw_top = (280 - gap) // 2
+        self._draw_clock_top(d, 100, 0, pw_top, 100, snap)
+        self._draw_opencode_top(d, 100 + pw_top + gap, 0, pw_top, 100, snap)
 
         # === MIDDLE ROW: 480×140 — CPU | GPU | RAM | NET ===
         mid_y, mid_h = 100, 140
@@ -453,21 +472,27 @@ class NeonGengarTheme(BaseTheme):
 
         return base.convert("RGB")
 
-    # ---- TOP MIDDLE: OPENCODE ----
-    def _draw_opencode_top(self, d, x, y, w, h, snap):
-        oc = snap.opencode
+    # ---- TOP LEFT: CLOCK 140×100 ----
+    _RUS_DAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
+
+    def _draw_clock_top(self, d, x, y, w, h, snap):
         from datetime import datetime
         now = datetime.now()
+        _panel(d, x, y, w, h, title="", title_size=0)
+        # время HH:MM крупно
+        draw_text(d, (x + w // 2, y + 34), now.strftime("%H:%M"), 36, NEON_W, bold=True, anchor="mm")
+        # дата по-русски
+        day_name = self._RUS_DAYS[now.weekday()]
+        date_str = f"{day_name} {now.day:02d}.{now.month:02d}"
+        draw_text(d, (x + w // 2, y + 64), date_str, 16, NEON_P2, anchor="mm")
+
+    # ---- TOP RIGHT: OPENCODE 140×100 ----
+    def _draw_opencode_top(self, d, x, y, w, h, snap):
+        oc = snap.opencode
         _panel(d, x, y, w, h, title="OPENCODE", title_size=12)
-        # крупно баланс
-        draw_text(d, (x + w // 2, y + 36), oc.balance, 24, NEON_C, bold=True, anchor="mm")
+        draw_text(d, (x + w // 2, y + 36), oc.balance, 22, NEON_C, bold=True, anchor="mm")
         if oc.plan:
-            draw_text(d, (x + w - 10, y + 18), oc.plan, 9, NEON_P, anchor="ra")
-        # время
-        draw_text(d, (x + 10, y + h - 14),
-                  now.strftime("%H:%M:%S"), 16, NEON_W, bold=True, anchor="lm")
-        draw_text(d, (x + w - 10, y + h - 14),
-                  now.strftime("%a %d.%m"), 11, NEON_P2, anchor="rm")
+            draw_text(d, (x + w // 2, y + 62), oc.plan, 14, NEON_P, anchor="mm")
 
     def _draw_cores_sparkline(self, d, x, y, w, h, per_core):
         """Вертикальные мини-бары на каждое ядро. Цвет: зелёный→жёлтый→красный."""
@@ -520,7 +545,7 @@ class NeonGengarTheme(BaseTheme):
         name = _trunc(d, snap.gpu.name, w // 2 - 6, fnt)
         draw_text(d, (x + 8, y + 50), name, 15, NEON_P, bold=True, anchor="lm")
         if snap.gpu.vram_total_mb > 0:
-            vram = f"{snap.gpu.vram_used_mb/1024:.1f}/{snap.gpu.vram_total_mb/1024:.0f}G"
+            vram = f"{snap.gpu.vram_used_mb/1024:.1f}/{snap.gpu.vram_total_mb/1024:.0f}Gb"
             draw_text(d, (x + 8, y + 68), vram, 15, NEON_C, bold=True)
         if snap.gpu.temp_c is not None:
             draw_text(d, (x + 80, y + 68), f"{snap.gpu.temp_c:.0f}°C",
@@ -542,7 +567,7 @@ class NeonGengarTheme(BaseTheme):
         d.rounded_rectangle([x + 1, y + 1, x + 1 + fw, y + h - 1],
                             radius=3, fill=(180, 100, 255))
         # текст внутри
-        text = f"VRAM {used_mb/1024:.1f}/{total_mb/1024:.0f}G"
+        text = f"VRAM {used_mb/1024:.1f}/{total_mb/1024:.0f}Gb"
         draw_text(d, (x + w // 2, y + h // 2), text, 10,
                   (255, 255, 255), bold=True, anchor="mm")
 
@@ -559,9 +584,9 @@ class NeonGengarTheme(BaseTheme):
         used = snap.mem.used_gb
         total = snap.mem.total_gb
         draw_text(d, (x + w // 2, y + 32),
-                  f"{used:.1f}G", 32, NEON_P, bold=True, anchor="mm")
+                  f"{used:.1f}Gb", 32, NEON_P, bold=True, anchor="mm")
         draw_text(d, (x + w // 2, y + 60),
-                  f"of {total:.0f}G", 13, NEON_C, bold=True, anchor="mm")
+                  f"из {total:.0f}Gb", 13, NEON_C, bold=True, anchor="mm")
         _bar(d, x + 8, y + h - 18, w - 16, 12, snap.mem.percent,
              fg=(180, 100, 255), bg=(40, 25, 60))
 
@@ -610,13 +635,12 @@ class NeonGengarTheme(BaseTheme):
         if ds is None:
             draw_text(d, (x + w // 2, y + h // 2), "n/a", 18, NEON_C, anchor="mm")
             return
-        # большой % сверху
         draw_text(d, (x + 8, y + 32),
                   f"{ds.percent:.0f}%", 24, NEON_P, bold=True, anchor="lm")
-        # used/total крупнее (14pt)
         draw_text(d, (x + w - 8, y + 32),
-                  f"{ds.used_gb:.0f}/{ds.total_gb:.0f}G", 14, NEON_C,
+                  f"{ds.used_gb:.0f}/{ds.total_gb:.0f}Gb", 14, NEON_C,
                   bold=True, anchor="ra")
-        # статус-бар
+        if ds.temp_c is not None:
+            draw_text(d, (x + 8, y + 52), f"{ds.temp_c:.0f}°C", 13, EYE_RED, bold=True)
         _bar(d, x + 8, y + h - 18, w - 16, 10, ds.percent,
              fg=(255, 220, 100), bg=(50, 40, 30))
