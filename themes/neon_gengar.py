@@ -35,7 +35,7 @@ BG_BOT   = (60, 18, 100)
 PANEL    = (16, 6, 30)
 
 
-GIF_DIR = Path("Z:/35inchENG/UsbDisplay/gif")
+GIF_DIR = Path(__file__).resolve().parent.parent / "gif"
 
 
 def _find_assets():
@@ -241,7 +241,8 @@ class NeonGengarTheme(BaseTheme):
         # (ключ, x, y, w, h, value-fetcher)
         self._regions = [
             ("opencode", 100, 0,   280, 100,
-             lambda s: (s.opencode.balance, s.opencode.plan)),
+             lambda s: (s.opencode.balance, s.opencode.plan,
+                        int(time.time()) // 2)),
             ("cpu",      4,   100, 0,   140,
              lambda s: (round(s.cpu.usage), round(s.cpu.freq_ghz, 1),
                          s.cpu.temp_c, tuple(round(x) for x in (s.cpu.per_core or [])))),
@@ -253,7 +254,8 @@ class NeonGengarTheme(BaseTheme):
                         round(s.mem.percent))),
             ("net",      0,   100, 0,   140,
              lambda s: (s.wifi.ssid, round(s.wifi.rx_bps / 1024),
-                        round(s.wifi.tx_bps / 1024), s.wifi.signal_pct)),
+                        round(s.wifi.tx_bps / 1024), s.wifi.signal_pct,
+                        int(time.time()) // 2)),
         ]
         # ширины панелей (CPU|GPU|RAM|NET)
         self._mid_w = 0

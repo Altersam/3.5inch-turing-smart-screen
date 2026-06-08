@@ -232,14 +232,53 @@ class HardwareMonitor:
         self._last_oc = 0.0
 
     def _cpu_temp_wmi(self):
-        if not self._wmi:
-            return None
+        if self._wmi:
+            try:
+                ts = self._wmi.MSAcpi_ThermalZoneTemperature()
+                if ts:
+                    temps = []
+                    for t in ts:
+                        c = (t.CurrentTemperature / 10.0) - 273.15
+                        if 0 < c < 120:
+                            temps.append(c)
+                    if temps:
+                        return max(temps)
+            except Exception:
+                pass
+        # fallback: OpenHardwareMonitor WMI
         try:
-            ts = self._wmi.MSAcpi_ThermalZoneTemperature()
-            if ts:
-                return (ts[0].CurrentTemperature / 10.0) - 273.15
+            import wmi as _wmi_mod
+            ohm = _wmi_mod.WMI(namespace="root\\OpenHardwareMonitor\\Hardware")
+            sensors = ohm.Sensor()
+            cpu_temps = []
+            for s in sensors:
+                if s.SensorType == "Temperature" and "CPU" in s.Parent:
+                    try:
+                        v = float(s.Value)
+                        if 0 < v < 120:
+                            cpu_temps.append(v)
+                    except Exception:
+                        pass
+            if cpu_temps:
+                return max(cpu_temps)
         except Exception:
-            return None
+            pass
+        # fallback: typeperf one-shot
+        try:
+            out = subprocess.check_output(
+                ["typeperf", "\\Thermal Zone Information(_Total)\\Temperature",
+                 "-sc", "1"], timeout=3,
+                creationflags=0x08000000
+            ).decode("utf-8", "ignore")
+            for line in out.splitlines():
+                if line.startswith('"') and "," in line:
+                    val = line.split(",")[1].strip().strip('"')
+                    c = (float(val) / 10.0) - 273.15
+                    if 0 < c < 120:
+                        return c
+        except Exception:
+            pass
+        return None
 
     def _disk_temp_wmi(self):
         if not self._wmi:
@@ -259,7 +298,7 @@ class HardwareMonitor:
             if f and f.current:
                 return f.current / 1000.0
         except Exception:
-            return None
+            pass
         return 0.0
 
     def _disk_sample(self, mount: str) -> DiskSample:
