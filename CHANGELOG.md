@@ -1,15 +1,39 @@
-# История изменений
+# Changelog
 
-## V37 Native — тестовый релиз, 23 сентября 2026
+All notable changes to Turing 3.5 Neon Monitor V38 will be documented in this file.
 
-- Второй диск C/D исправлен на C/Z по фактической конфигурации Windows пользователя. При ошибке чтения объёма сохраняются последние данные.
-- Привёл строки CPU/GPU в пределы карточек: процент, температура + Вт, частота / VRAM не пересекаются.
-- Мягкие белые бегущие блики по верхним неоновым рамкам, две маленькие искры рядом с Gengar; только компактные COM-патчи.
-- GPU период опроса 950 мс вместо 1250 мс; CPU/RAM 550 мс. Баланс и usage при сетевой ошибке не сбрасываются.
-- Осталась нативная архитектура: один EXE, один трей, один COM-владелец. Нет бинарных патчей старых версий.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## V36 Native
+## [Unreleased]
 
-- Переход с wrapper/core V29 на нативное Go-приложение.
-- OpenCode через JSON API и cookie консоли; управление COM, метриками и треем в одном процессе.
-- Региональные обновления RGB565 и реконнект при ошибках порта.
+### Fixed
+- Removed blocking `FlushFileBuffers` call in COM send operations
+- Added CTS (Clear To Send) diagnostics before each data write
+- Disabled RTS/CTS handshake to prevent deadlock
+- Added buffer error checking with `ClearCommError()`
+- Improved reconnect logic with buffer purge and CTS recheck
+- Reduced chunk size from 2048 to 1024 bytes for better reliability on slow ports
+- Added watchdog timeout (3 seconds) for async COM operations
+
+### Changed
+- Improved log messages for debugging COM port issues
+- Better error handling for WriteFile operations
+
+### Deprecated
+- None
+
+## [V37] - Initial Release
+
+### Added
+- Real-time CPU, GPU, RAM usage display
+- Disk space monitoring and reporting
+- OpenCode AI Go API integration with balance display
+- Neon animation trail effect
+- Native Windows system tray integration
+
+### Features
+- 3.5-inch LCD display support (ST7796 controller)
+- USB serial communication via CH340 driver
+- Auto-start on Windows login
+- Console session management
