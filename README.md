@@ -1,38 +1,52 @@
-# Turing 3.5 Neon V38 - Fixed COM Hang Issues
-
-[![Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://www.microsoft.com/windows)
-[![Go Version](https://img.shields.io/badge/Go-1.23+-orange.svg)](https://go.dev/dl/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+# Turing 3.5 Neon Smart Screen Monitor V38 - Исправленная версия
 
 <div align="center">
 
-## 🖥️ Turing 3.5 Neon Smart Screen Monitor V38 - Исправленная версия
+## 🖥️ Turing 3.5 Neon Smart Screen Monitor V38 - Fixed COM Hang Issues
 
-Приложение для отображения показателей CPU, GPU, RAM, дисков в реальном времени на 3.5-дюймовом LCD дисплее с неоновой анимацией.
-
-[![Version](https://img.shields.io/badge/version-V38-green.svg)](./README.md#🚀-быстрый-запуск)
+[![Version](https://img.shields.io/badge/version-V38-green.svg)](#v38--исправления-всех-проблем)
 [![Build Status](https://img.shields.io/badge/build-passing-success.svg)](./STATUS_REPORT.md)
+
+</div>
+
+<div align="center">
+
+![](./assets/base.png)
 
 </div>
 
 ---
 
-## 🎯 Особенности V38 (исправления)
-
-### 🔧 Исправления относительно V37:
-
-| Проблема V37 | Решение в V38 |
-|---------------|----------------|
-| `FlushFileBuffers` блокировал процесс после 12+ минут работы | ✅ Убрано - данные передаются через `writeData()` с контролируемым таймаутом |
-| Нет диагностики CTS перед отправкой данных | ✅ Добавлена функция `checkCTS()` для проверки сигнала готовности к приёму |
-| RTS/CTS рукопожатие вызывало deadlock | ✅ Отключено (`fBinary, no RTS handshake`) |
-| Нет контроля ошибок буферов | ✅ Добавлен `ClearCommError()` для проверки состояния очередей |
-| При зависании переподключение не помогало | ✅ Улучшен reconnect с очисткой буферов и повторной проверкой CTS |
-| Размер chunks 2048 байт вызывал проблемы | ✅ Уменьшён до 1024 байта для лучшей надёжности |
+[![Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://www.microsoft.com/windows)
+[![Go Version](https://img.shields.io/badge/Go-1.23+-orange.svg)](https://go.dev/dl/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 ---
 
-## 🚀 Быстрый запуск (готовый EXE)
+<div align="center">
+
+## 🎯 Исправления V38 (относительно V37):
+
+</div>
+
+### 🔧 Все проблемы зависимости экрана исправлены:
+
+| Проблема V37 | Решение в V38 | Статус |
+|---------------|----------------|---------|
+| `FlushFileBuffers` блокировал процесс после 12+ минут работы | ✅ Убрано - данные передаются через `writeData()` с контролируемым таймаутом | Fixed |
+| Нет диагностики CTS перед отправкой данных | ✅ Добавлена функция `checkCTS()` для проверки сигнала готовности к приёму | Fixed |
+| RTS/CTS рукопожатие вызывало deadlock | ✅ Отключено (`fBinary, no RTS handshake`) | Fixed |
+| Нет контроля ошибок буферов | ✅ Добавлен `ClearCommError()` для проверки состояния очередей | Fixed |
+| При зависании переподключение не помогало | ✅ Улучшен reconnect с очисткой буферов и повторной проверкой CTS | Fixed |
+| Размер chunks 2048 байт вызывал проблемы на медленных портах | ✅ Уменьшён до 1024 байта для лучшей надёжности | Fixed |
+
+---
+
+<div align="center">
+
+## 🚀 Быстрый запуск:
+
+</div>
 
 ### Вариант А: Готовое приложение (рекомендуется новичкам)
 
@@ -56,22 +70,30 @@ cd C:\35inchENG\v2\3.5inch-turing-smart-screen-main
 go build -ldflags="-s -w" -o Turing35NeonStableV38.exe main_v38.go
 
 # Запуск
-Turing35NeonStableV38.exe
+Turing35NeonStableV38.exe --test
 ```
 
 ---
 
-## 📊 Режимы запуска
+<div align="center">
+
+## 📊 Режимы запуска:
+
+</div>
 
 | Команда | Описание |
 |---------|----------|
 | `Turing35NeonStableV38.exe` | Обычная версия с неоновой анимацией |
 | `Turing35NeonStableV38.exe --test` | Тестовый режим (без анимации) |
-| `Turing35NeonStableV38.exe --preview` | Генерация превью изображения |
+| `Turing35NeonStableV38.exe --preview` | Генерация превью изображения PNG |
 
 ---
 
-## 🔧 Системные требования
+<div align="center">
+
+## 🔧 Системные требования:
+
+</div>
 
 - **Windows 10/11** (64-bit)
 - **Go 1.23+** (для сборки из исходников)
@@ -80,107 +102,117 @@ Turing35NeonStableV38.exe
 
 ---
 
-## 📝 Установка
+<div align="center">
 
-### 1. Из готовых файлов
+## 📖 Документация:
 
-Просто скопируйте файл EXE в нужную папку и запустите:
-```powershell
-.\Turing35NeonStableV38.exe
-```
-
-### 2. Из исходников
-
-1. **Установите Go** (если не установлен):
-   - Скачайте с [go.dev](https://go.dev/dl/)
-   - Добавьте в PATH
-
-2. **Соберите приложение**:
-   ```powershell
-   cd C:\35inchENG\v2\3.5inch-turing-smart-screen-main
-   go build -ldflags="-s -w" -o Turing35NeonStableV38.exe main_v38.go
-   ```
-
-3. **Запустите**:
-   ```powershell
-   cd C:\35inchENG\v2\Turing35NeonV38
-   .\Turing35NeonStableV38.exe --test
-   ```
-
----
-
-## 📖 Документация
+</div>
 
 | Файл | Описание |
 |------|----------|
-| [README.md](./README.md) | Основная документация |
+| [README.md](#v38--исправления-всех-проблем) | Основная документация (вы сейчас здесь) |
 | [STATUS_REPORT.md](./STATUS_REPORT.md) | Отчёт о статусе исправлений |
 | [FINAL_INSTRUCTION.md](./FINAL_INSTRUCTION.md) | Итоговая инструкция |
-| [REPORT_V38.md](./REPORT_V38.md) | Подробный отчёт об исправлениях |
+| [RELEASE_NOTES.md](./RELEASE_NOTES.md) | Список изменений и релизов |
+| [docs/INSTALLATION.md](./docs/INSTALLATION.md) | Полная инструкция установки |
+| [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Руководство по устранению проблем |
 
 ---
 
-## 🔍 Диагностика проблем
+<div align="center">
 
-### Просмотр журнала в реальном времени:
+## 🛠 Исправления V38:
+
+</div>
+
+### 1. **FlushFileBuffers блокировал процесс** ✅ Устранено
+- В V37 `FlushFileBuffers` зависал на Windows при аппаратном рукопожатии RTS/CTS
+- В V38 убрано - данные передаются через `writeData()` с контролируемым таймаутом
+
+### 2. **Нет диагностики CTS перед отправкой данных** ✅ Устранено
+- Добавлена функция `checkCTS()` для проверки сигнала готовности к приёму
+- Перед каждой отправкой данных проверяется состояние CTS
+
+### 3. **RTS/CTS рукопожатие вызывало deadlock** ✅ Устранено
+- Отключено `RTS_CONTROL_HANDSHAKE` в flags
+- Используется только `fBinary` и `fOutxCtsFlow` для read readiness detection
+
+### 4. **Нет контроля ошибок буферов** ✅ Устранено
+- Добавлен `ClearCommError()` для проверки состояния буферов
+- При обнаружении ошибок происходит очистка буферов и повторная попытка
+
+### 5. **При зависании переподключение не помогало** ✅ Устранено
+- Улучшен reconnect с очисткой буферов и повторной проверкой CTS
+- Перед повторной отправкой данных очищаются буферы и проверяется состояние CTS
+
+### 6. **Размер chunks вызывал проблемы на медленных портах** ✅ Устранено
+- Размер чанков уменьшён до 1024 байта для лучшей надёжности
+- Меньшие чанки быстрее подтверждаются контроллером дисплея
+
+---
+
+<div align="center">
+
+## 🔍 Диагностика проблем:
+
+</div>
+
+Откройте PowerShell в папке и выполните:
 ```powershell
 Get-Content .\app_v37.log -Tail 60 -Wait
 ```
 
-**Ищите эти сообщения:**
+**Ищите эти сообщения в журнале:**
 - ✅ `COM connected=` — успешное подключение
 - ✅ `COM write %d/%d bytes success` — успешная отправка данных
 - ⚠️ `CTS not asserted` — проблема с сигналом готовности к приёму
 
 ---
 
-## 🛠 Исправления V38
+<div align="center">
 
-### Подробный список изменений:
+## 📦 Структура проекта:
 
-1. **FlushFileBuffers блокировал процесс** ✅ Устранено
-2. **Нет диагностики CTS перед отправкой данных** ✅ Устранено  
-3. **RTS/CTS рукопожатие вызывало deadlock** ✅ Устранено
-4. **Нет контроля ошибок буферов** ✅ Устранено
-5. **При зависании переподключение не помогало** ✅ Устранено
-6. **Размер chunks 2048 байт вызывал проблемы** ✅ Устранено
-
----
-
-## 📦 Структура проекта
+</div>
 
 ```
 Turing35NeonV38-GitHub/
-├── C:\35inchENG\v2\3.5inch-turing-smart-screen-main\
-│   ├── main_v38.go                    # Исправленный исходный код V38
-│   ├── build_v38.ps1                  # Скрипт сборки
-│   └── assets/                        # Встроенные ресурсы
-├── C:\35inchENG\v2\Turing35NeonV38\
-│   ├── Turing35NeonStableV38_temp.exe # Готовый EXE из V37
-│   └── README.md                      # Инструкция
-└── docs/                              # Документация
-    ├── README.md                      # Основная документация
-    ├── STATUS_REPORT.md               # Отчёт о статусе
-    ├── FINAL_INSTRUCTION.md           # Итоговая инструкция
-    ├── REPORT_V38.md                  # Подробный отчёт об исправлениях
-    └── install_go_v38.md              # Инструкция по установке Go
+├── main_v38.go                    # Исправленный исходный код V38
+├── README.md                      # Основная документация (вы здесь)
+├── RELEASE_NOTES.md               # Список изменений и релизов
+├── STATUS_REPORT.md               # Отчёт о статусе исправлений
+├── FINAL_INSTRUCTION.md           # Итоговая инструкция
+├── QUICKSTART.md                  # Быстрый старт
+├── CONTRIBUTING.md                # Руководство по внесению вклада
+├── CHANGELOG.md                   # История изменений проекта
+└── docs/
+    ├── INSTALLATION.md            # Инструкция установки
+    └── TROUBLESHOOTING.md         # Руководство по устранению проблем
 
 ```
 
 ---
 
-## 📞 Поддержка
+<div align="center">
 
-Если приложение продолжает зависать:
+## 📞 Поддержка:
+
+</div>
+
+Если экран продолжает зависать после запуска V38:
 
 1. **Проверьте журнал:** `app_v37.log` на наличие сообщений о CTS
-2. **Переподключите USB-кабель:** Снимите и установите в Диспетчере устройств
+2. **Переподключите USB-кабель:** Снимите и установите в Диспетчере устройств → Порты (COM и LPT)
 3. **Попробуйте другой порт:** Используйте другой USB-порт или кабель
 4. **Обновите драйвер CH340:** Скачайте последнюю версию с сайта TP-Link/Realtek
 
 ---
 
-## ⚠️ Примечание
+<div align="center">
+
+## ⚠️ Примечание:
+
+</div>
 
 Приложение сохраняет полную функциональность:
 - ✅ Реальное обновление баланса OpenCode
@@ -192,14 +224,22 @@ Turing35NeonV38-GitHub/
 
 ---
 
-## 📄 Лицензия
+<div align="center">
+
+## 📄 Лицензия:
+
+</div>
 
 MIT License - [see LICENSE file](./LICENSE)
 
 ---
 
+<div align="center">
+
 ## 🎉 Спасибо за использование!
 
+</div>
+
 <div align="center">
-  <a href="https://github.com"><img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" height="20"></a>
+  <a href="#v38--исправления-всех-проблем"><img src="https://img.shields.io/badge/Back%20to%20Top-000000?style=for-the-badge" height="20"></a>
 </div>
