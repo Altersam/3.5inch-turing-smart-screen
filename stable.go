@@ -9,6 +9,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -33,16 +34,18 @@ import (
 var assets embed.FS
 
 const (
-	version = "Turing35Neon"
-	dispW   = 480
-	dispH   = 320
-	baud    = 115200
+	version      = "Turing35Neon"
+	buildVersion = "V47"
+	dispW        = 480
+	dispH        = 320
+	baud         = 115200
 )
 
 var (
 	appLog   *log.Logger
 	stopCh   = make(chan struct{})
 	stopOnce sync.Once
+	noGlow   = flag.Bool("no-glow", true, "update stats without animated glow patches")
 )
 
 func stopApp() { stopOnce.Do(func() { close(stopCh) }) }
@@ -266,6 +269,7 @@ var (
 	procSetupComm       = kernel.NewProc("SetupComm")
 	procPurgeComm       = kernel.NewProc("PurgeComm")
 	procWrite           = kernel.NewProc("WriteFile")
+	procRead            = kernel.NewProc("ReadFile")
 	procGetSystemTimes  = kernel.NewProc("GetSystemTimes")
 	procMemStatus       = kernel.NewProc("GlobalMemoryStatusEx")
 	procDiskFree        = kernel.NewProc("GetDiskFreeSpaceExW")
@@ -293,6 +297,7 @@ type port struct {
 	bytesSent     uint64
 	regionsSent   uint64
 	writeDuration time.Duration
+	nextRegion    time.Time
 }
 
 func openPort(name string) (*port, error) {
@@ -321,12 +326,16 @@ func openPort(name string) (*port, error) {
 	if r == 0 {
 		return fail(fmt.Errorf("SetCommState: %v", e))
 	}
-	// A full RGB565 frame is about 300 KiB.  Allow it to complete as one
-	// synchronous write, while retaining a finite timeout for a lost device.
-	t := commTimeouts{ReadIntervalTimeout: 0xFFFFFFFF, ReadTotalTimeoutConstant: 200, WriteTotalTimeoutConstant: 60000}
+	// Writes are bounded to serialChunkSize; a dead endpoint should not block
+	// every reconnection attempt for a whole minute.
+	t := commTimeouts{ReadIntervalTimeout: 0xFFFFFFFF, ReadTotalTimeoutConstant: 200, WriteTotalTimeoutConstant: 3000}
 	r, _, e = procSetCommTimeouts.Call(h, uintptr(unsafe.Pointer(&t)))
 	if r == 0 {
 		return fail(fmt.Errorf("SetCommTimeouts: %v", e))
+	}
+	r, _, e = procPurgeComm.Call(h, 0x000F) // abort/clear stale RX and TX queues
+	if r == 0 {
+		return fail(fmt.Errorf("PurgeComm: %v", e))
 	}
 	time.Sleep(250 * time.Millisecond)
 	return &port{h: h}, nil
@@ -336,34 +345,26 @@ func (p *port) close() {
 	if p == nil || p.h == 0 || p.h == invalidHandle {
 		return
 	}
+	procPurgeComm.Call(p.h, 0x000F)
 	procClose.Call(p.h)
 	p.h = 0
 	time.Sleep(700 * time.Millisecond)
 }
 
 func (p *port) write(buf []byte) error {
-	if len(buf) == 0 {
-		return nil
-	}
-	started := time.Now()
-	defer func() { p.writeDuration += time.Since(started) }()
-	for off := 0; off < len(buf); {
-		select {
-		case <-stopCh:
-			return fmt.Errorf("stopping")
-		default:
-		}
-		part := buf[off:]
+	w := serialWriter{now: time.Now, wait: waitSerial, write: func(part []byte) (int, error) {
 		var n uint32
 		r, _, e := procWrite.Call(p.h, uintptr(unsafe.Pointer(&part[0])), uintptr(len(part)), uintptr(unsafe.Pointer(&n)), 0)
 		runtime.KeepAlive(part)
-		if r == 0 || n == 0 {
-			return fmt.Errorf("WriteFile offset=%d/%d transferred=%d: %v", off, len(buf), n, e)
+		if r == 0 {
+			return int(n), e
 		}
-		off += int(n)
-		p.bytesSent += uint64(n)
-	}
-	return nil
+		return int(n), nil
+	}}
+	n, duration, err := w.send(buf)
+	p.bytesSent += uint64(n)
+	p.writeDuration += duration
+	return err
 }
 
 func cmd(x, y, ex, ey, c int) []byte {
@@ -383,6 +384,27 @@ func (p *port) initScreen() error {
 	if e := p.write([]byte{69, 69, 69, 69, 69, 69}); e != nil {
 		return e
 	}
+	var reply [6]byte
+	n := 0
+	for n < len(reply) {
+		var got uint32
+		r, _, e := procRead.Call(p.h, uintptr(unsafe.Pointer(&reply[n])), uintptr(len(reply)-n), uintptr(unsafe.Pointer(&got)), 0)
+		if r == 0 {
+			return fmt.Errorf("HELLO read: %w", e)
+		}
+		if got == 0 {
+			break
+		}
+		n += int(got)
+	}
+	if n == 0 {
+		// Original Rev. A screens do not implement HELLO replies.
+		appLog.Printf("COM HELLO: no reply; using standard Rev. A protocol")
+	} else if n == len(reply) && (reply == [6]byte{1, 1, 1, 1, 1, 1}) {
+		appLog.Printf("COM HELLO: USBMonitor 3.5 acknowledged")
+	} else {
+		return fmt.Errorf("unexpected HELLO reply: %x", reply[:n])
+	}
 	time.Sleep(120 * time.Millisecond)
 	orient := orientationCommand(2, dispW, dispH)
 	if e := p.write(orient); e != nil {
@@ -397,15 +419,20 @@ func (p *port) initScreen() error {
 }
 
 func (p *port) region(img *image.RGBA, x, y, w, h int) error {
+	if err := waitSerial(time.Until(p.nextRegion)); err != nil {
+		return err
+	}
 	if err := sendRegion(p.write, img, x, y, w, h); err != nil {
 		return err
 	}
+	p.nextRegion = time.Now().Add(serialRegionGap)
 	p.regionsSent++
 	return nil
 }
 
-// Each region is written as one header and one complete RGB565 payload.
-// serialLoop is the only caller, so the two writes cannot be interleaved.
+// Each region is one header followed by exactly w*h*2 RGB565 bytes. The port
+// writer splits the payload into paced USB writes without inserting commands.
+// serialLoop is the only caller, so transactions cannot be interleaved.
 func sendRegion(write func([]byte) error, img *image.RGBA, x, y, w, h int) error {
 	if x < 0 {
 		x = 0
@@ -1196,6 +1223,8 @@ func serialLoop() {
 	name := findCom()
 	appLog.Printf("COM selected=%s baud=%d", name, baud)
 	fails := 0
+	needsRecovery := false
+	var recoveryAt time.Time
 	for {
 		select {
 		case <-stopCh:
@@ -1204,6 +1233,18 @@ func serialLoop() {
 		}
 		if fails > 0 {
 			name = findCom()
+		}
+		if needsRecovery && fails >= 2 && time.Since(recoveryAt) >= 5*time.Minute {
+			recoveryAt = time.Now()
+			if err := restartDisplayDevice(name); err != nil {
+				appLog.Printf("COM USB recovery: %v; if writes still fail, reconnect the screen USB cable", err)
+			} else {
+				appLog.Printf("COM USB device restarted; waiting for enumeration")
+				if waitSerial(5*time.Second) != nil {
+					return
+				}
+				name = findCom()
+			}
 		}
 		p, e := openPort(name)
 		if e != nil {
@@ -1220,15 +1261,16 @@ func serialLoop() {
 			}
 			continue
 		}
-		appLog.Printf("COM connected=%s", name)
+		appLog.Printf("COM opened=%s; checking screen", name)
 		if e := p.initScreen(); e != nil {
 			appLog.Printf("COM init: %v", e)
+			needsRecovery = true
 			fails++
 			p.close()
 			select {
 			case <-stopCh:
 				return
-			case <-time.After(45 * time.Second):
+			case <-time.After(10 * time.Second):
 			}
 			continue
 		}
@@ -1238,6 +1280,7 @@ func serialLoop() {
 		img := render(s, phase)
 		if e := p.frame(img); e != nil {
 			appLog.Printf("COM frame: %v", e)
+			needsRecovery = true
 			fails++
 			p.close()
 			select {
@@ -1247,8 +1290,9 @@ func serialLoop() {
 			}
 			continue
 		}
-		appLog.Printf("COM frame done; bytes=%d write_time=%s; stat and glow updates enabled", p.bytesSent, p.writeDuration)
+		appLog.Printf("COM frame done; bytes=%d write_time=%s; chunk=%d rate_limit=%dB/s region_gap=%s no_glow=%t; stat updates enabled", p.bytesSent, p.writeDuration, serialChunkSize, serialBytesPerSecond, serialRegionGap, *noGlow)
 		fails = 0
+		needsRecovery = false
 		shown := s
 		fastN := 0
 		fastStart, slowStart := 0, 0
@@ -1277,6 +1321,9 @@ func serialLoop() {
 			nextShown := shown
 			var rects []image.Rectangle
 			if k == "" {
+				if *noGlow {
+					continue
+				}
 				if time.Since(lastGlow) < 150*time.Millisecond {
 					continue
 				}
@@ -1292,7 +1339,8 @@ func serialLoop() {
 			}
 			img = render(nextShown, nextPhase)
 			if e := p.updateRects(img, rects); e != nil {
-				appLog.Printf("COM patch %s: %v; closing and reconnecting after 30s", k, e)
+				appLog.Printf("COM patch %s: %v; sent_bytes=%d sent_regions=%d; closing and reconnecting after 30s", k, e, p.bytesSent, p.regionsSent)
+				needsRecovery = true
 				fails++
 				tick.Stop()
 				p.close()
@@ -1324,7 +1372,7 @@ func killOld() {
 	self, _ := os.Executable()
 	self = filepath.Base(self)
 	for _, n := range []string{
-		"Turing35PC.exe", "Turing35NeonStableV39.exe", "Turing35NeonStableV40.exe", "Turing35NeonStableV41.exe", "Turing35NeonStableV42.exe", "Turing35NeonStableV43.exe",
+		"Turing35PC.exe", "Turing35NeonStableV39.exe", "Turing35NeonStableV40.exe", "Turing35NeonStableV41.exe", "Turing35NeonStableV42.exe", "Turing35NeonStableV43.exe", "Turing35NeonStableV44.exe", "Turing35NeonStableV45.exe", "Turing35NeonStableV46.exe",
 		"Turing35NeonStableV38.exe", "Turing35NeonStableV38_temp.exe",
 	} {
 		if strings.EqualFold(n, self) {
@@ -1526,13 +1574,15 @@ func openLog() {
 }
 
 func main() {
+	preview := flag.Bool("preview", false, "render a preview without opening the display")
+	flag.Parse()
 	openLog()
-	appLog.Printf("%s start", version)
+	appLog.Printf("%s %s start", version, buildVersion)
 	if e := loadGraphics(); e != nil {
 		appLog.Printf("graphics: %v", e)
 		return
 	}
-	if len(os.Args) > 1 && os.Args[1] == "--preview" {
+	if *preview {
 		s := stats{CPU: 42, GPU: 7, RAM: 51, CPUTemp: 54, GPUTemp: 48, CPUFreq: 4.2, CPUPower: 65, GPUPower: 40, VRAMUsed: 3.2, VRAMTotal: 16, RAMUsed: 16.2, RAMTotal: 32, DiskCUsed: 740, DiskCTotal: 931, DiskZUsed: 819, DiskZTotal: 953, Daily: 5, Weekly: 42, Monthly: 100, Claude: usageWindows{37, 20, true, true}, Codex: usageWindows{76, 59, true, true}, UsageOK: true, When: time.Now()}
 		im := render(s, 0)
 		f, e := os.Create(filepath.Join(exeDir(), "neon_preview.png"))

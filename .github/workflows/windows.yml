@@ -1,0 +1,30 @@
+name: Windows Go
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Test
+        run: go test -v ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build -ldflags '-H=windowsgui -s -w' -o "$env:RUNNER_TEMP\Turing35NeonStableV47.exe" .
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: Turing35NeonStableV47-windows-amd64
+          path: ${{ runner.temp }}/Turing35NeonStableV47.exe
+          if-no-files-found: error

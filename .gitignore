@@ -1,0 +1,22 @@
+# Publish only the current Windows build.
+*.exe
+!/Turing35NeonStableV47.exe
+*.log
+neon_preview.png
+
+# Credentials and local configuration
+.env
+.env.*
+auth.json
+.credentials.json
+*cookie*.txt
+opencode_url.txt
+opencode_token.txt
+
+# Editor, OS and Python helper output
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+Thumbs.db
+.DS_Store
