@@ -1562,15 +1562,13 @@ func runTray() {
 
 func openLog() {
 	p := filepath.Join(exeDir(), "app_neon.log")
-	if st, e := os.Stat(p); e == nil && st.Size() > 200*1024 {
-		_ = os.Remove(p)
-	}
-	f, e := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	f, e := openHourlyLog(p, time.Now)
 	if e != nil {
 		appLog = log.New(os.Stderr, "", log.Ltime)
 		return
 	}
 	appLog = log.New(f, "", log.Ldate|log.Ltime|log.Lmicroseconds)
+	go resetLogHourly(f)
 }
 
 func main() {
